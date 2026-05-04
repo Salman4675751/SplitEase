@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Theme palettes ────────────────────────────────────────────
+   Each theme defines a 50→900 primary scale as RGB triplets so they
+   plug into Tailwind's <alpha-value> color functions. Switch themes
+   by adding `theme-<name>` class to <html>. Default = teal.
+*/
+:root,
+.theme-teal {
+  --p-50:  230 250 245;
+  --p-100: 179 240 227;
+  --p-200: 128 229 209;
+  --p-300:  77 218 191;
+  --p-400:  38 208 173;
+  --p-500:   0 184 148;
+  --p-600:   0 160 128;
+  --p-700:   0 135 107;
+  --p-800:   0 110  87;
+  --p-900:   0  85  66;
+}
+
+.theme-sunset {
+  --p-50:  255 241 235;
+  --p-100: 255 218 200;
+  --p-200: 255 187 156;
+  --p-300: 255 152 109;
+  --p-400: 252 117  72;
+  --p-500: 244  85  44;
+  --p-600: 219  64  29;
+  --p-700: 184  49  20;
+  --p-800: 145  36  16;
+  --p-900: 110  28  12;
+}
+
+.theme-midnight {
+  --p-50:  236 234 255;
+  --p-100: 211 205 254;
+  --p-200: 181 170 252;
+  --p-300: 149 132 248;
+  --p-400: 122 102 244;
+  --p-500:  99  79 234;
+  --p-600:  82  60 213;
+  --p-700:  68  46 184;
+  --p-800:  54  37 153;
+  --p-900:  41  29 122;
+}
+
+.theme-rose {
+  --p-50:  255 241 246;
+  --p-100: 255 219 232;
+  --p-200: 253 184 210;
+  --p-300: 251 142 188;
+  --p-400: 246 100 163;
+  --p-500: 232  62 140;
+  --p-600: 207  41 117;
+  --p-700: 173  31  94;
+  --p-800: 140  26  77;
+  --p-900: 110  20  60;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    /* Montserrat-friendly OpenType: tabular numbers + ligatures + slashed zero */
+    font-feature-settings: 'tnum', 'liga', 'zero';
+  }
+
+  /* Inputs and buttons sometimes don't inherit body font on certain browsers */
+  input, button, textarea, select {
+    font-family: inherit;
+  }
+
+  :root {
+    --scrollbar-thumb: #cbd5e1;
+    --scrollbar-track: transparent;
+  }
+
+  .dark {
+    --scrollbar-thumb: #475569;
+  }
+}
+
+@layer utilities {
+  /* Custom scrollbar */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 5px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 20px;
+  }
+
+  /* Glass morphism card effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-sm;
+  }
+  .dark .glass {
+    @apply bg-dark-card/80;
+  }
+
+  /* Fade-in animation */
+  .animate-fadein {
+    animation: fadein 0.4s ease-out;
+  }
+  @keyframes fadein {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Animated mesh gradient backdrop for hero panels — follows the active theme */
+  .mesh-bg {
+    background-image:
+      radial-gradient(at 20% 30%, rgb(var(--p-400) / 0.35) 0px, transparent 50%),
+      radial-gradient(at 80% 20%, rgb(var(--p-700) / 0.45) 0px, transparent 50%),
+      radial-gradient(at 70% 90%, rgb(var(--p-400) / 0.25) 0px, transparent 50%),
+      radial-gradient(at 30% 80%, rgb(var(--p-800) / 0.4)  0px, transparent 50%);
+    background-color: rgb(var(--p-700));
+  }
+
+  /* Subtle grain overlay for depth */
+  .grain::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+}

@@ -1,4 +1,6 @@
-require('dotenv').config();
+// Load .env from this file's directory regardless of process.cwd()
+// (so PM2 / systemd / Docker can launch us from any working dir).
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const connectDB = require('./src/config/db');

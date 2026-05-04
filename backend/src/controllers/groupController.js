@@ -142,15 +142,62 @@ exports.updateGroup = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /groups/:id — delete a group.
+ *
+ * Authorisation: any group admin (or the original creator) can delete.
+ *
+ * Default behaviour is a HARD delete: the group, all its expenses,
+ * settlements, and pending invitations are permanently removed. This
+ * matches user expectations from the "Delete Group" button.
+ *
+ * Pass ?soft=true to instead archive the group (sets isActive=false,
+ * data preserved). Useful for "I might want this back" cases.
+ */
 exports.deleteGroup = async (req, res, next) => {
   try {
-    const group = await Group.findOne({ _id: req.params.id, createdBy: req.user._id });
-    if (!group) return res.status(404).json({ message: 'Group not found or not authorized' });
+    const group = await Group.findById(req.params.id);
+    if (!group) return res.status(404).json({ message: 'Group not found' });
 
-    group.isActive = false;
-    await group.save();
+    const userIdStr = req.user._id.toString();
+    const isAdmin = group.members.some(
+      (m) => m.user.toString() === userIdStr && m.role === 'admin'
+    );
+    const isCreator = group.createdBy.toString() === userIdStr;
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({ message: 'Only group admins can delete this group' });
+    }
 
-    res.json({ message: 'Group deleted' });
+    const soft = req.query.soft === 'true';
+    if (soft) {
+      group.isActive = false;
+      await group.save();
+      return res.json({ message: 'Group archived', mode: 'soft' });
+    }
+
+    // Hard delete cascade — remove every record tied to this group
+    const [expensesDel, settlementsDel, invitesDel] = await Promise.all([
+      Expense.deleteMany({ group: group._id }),
+      Settlement.deleteMany({ group: group._id }),
+      Invitation.deleteMany({ group: group._id }),
+    ]);
+    await group.deleteOne();
+
+    // Clean dangling notifications on members that referenced this group
+    await User.updateMany(
+      { 'notifications.relatedGroup': group._id },
+      { $pull: { notifications: { relatedGroup: group._id } } }
+    );
+
+    res.json({
+      message: 'Group permanently deleted',
+      mode: 'hard',
+      deleted: {
+        expenses: expensesDel.deletedCount,
+        settlements: settlementsDel.deletedCount,
+        invitations: invitesDel.deletedCount,
+      },
+    });
   } catch (err) {
     next(err);
   }

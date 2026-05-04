@@ -181,7 +181,32 @@ export default function GroupDetailPage() {
     try {
       await api.delete(`/groups/${id}/members/${userId}`);
       toast.success('Member removed');
-      fetchAll();
+      // If you removed yourself, exit to /groups since you no longer have access
+      if (userId === user?._id) navigate('/groups');
+      else fetchAll();
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  /**
+   * Hard-delete the entire group with type-to-confirm safety.
+   * Cascades to expenses, settlements, invitations, and notifications.
+   */
+  const deleteGroup = async () => {
+    const expected = group.name;
+    const input = window.prompt(
+      `This will permanently delete "${expected}" along with ALL its expenses, settlements, and comments.\n\nThis cannot be undone. Type the group name exactly to confirm:`
+    );
+    if (input == null) return;
+    if (input.trim() !== expected) {
+      toast.error('Group name didn\'t match — cancelled');
+      return;
+    }
+    try {
+      await api.delete(`/groups/${id}`);
+      toast.success(`"${expected}" deleted`);
+      navigate('/groups');
     } catch (err) {
       toast.error(err.message);
     }
@@ -636,6 +661,32 @@ export default function GroupDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Danger Zone — only group admins see this */}
+      {isAdmin && (
+        <div className="mt-2 pt-6 border-t-2 border-rose-200 dark:border-rose-500/20">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 mb-3">
+            Danger Zone
+          </h3>
+          <div className="bg-rose-50/40 dark:bg-rose-500/5 border border-rose-200 dark:border-rose-500/20 rounded-2xl p-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-semibold text-gray-900 dark:text-dark-text">Delete this group</p>
+                <p className="text-xs text-gray-600 dark:text-dark-muted mt-0.5">
+                  Permanently removes the group along with all expenses ({expenses.length}),
+                  settlements ({settlements.length}), and comments. <strong>Cannot be undone.</strong>
+                </p>
+              </div>
+              <button
+                onClick={deleteGroup}
+                className="px-4 py-2.5 rounded-xl border border-rose-300 dark:border-rose-500/40 bg-white dark:bg-dark-card text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-500/15 font-semibold text-sm transition flex-shrink-0 flex items-center gap-1.5"
+              >
+                <FiTrash2 className="h-4 w-4" /> Delete Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile floating action buttons */}
       <div className="sm:hidden fixed bottom-4 right-4 left-4 z-30 flex gap-2">

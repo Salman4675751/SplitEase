@@ -1,4 +1,4 @@
-import { FiMail, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiArrowRight, FiUserMinus, FiLogOut } from 'react-icons/fi';
 import Modal from '../common/Modal';
 import Avatar from '../common/Avatar';
 import { formatCurrency } from '../../utils/formatters';
@@ -7,8 +7,19 @@ import { formatCurrency } from '../../utils/formatters';
  * Click on a member → see who they owe / who owes them within this group.
  * Driven entirely by the simplified transaction list the backend already
  * returns, so no extra API call needed.
+ *
+ * Props:
+ *   isOpen, onClose       — modal control
+ *   member                — the user being viewed
+ *   balances, transactions, currency — group state for breakdown
+ *   currentUserId         — the viewer's id (for "you" badge + self-remove)
+ *   isAdmin               — true if viewer is group admin (shows remove button)
+ *   onRemove(userId)      — callback to remove the member (or self)
  */
-export default function MemberDetailModal({ isOpen, onClose, member, balances, transactions, currency, currentUserId }) {
+export default function MemberDetailModal({
+  isOpen, onClose, member, balances, transactions, currency,
+  currentUserId, isAdmin, onRemove,
+}) {
   if (!member) return null;
 
   const balance = balances?.find((b) => b.user?._id === member._id);
@@ -108,6 +119,49 @@ export default function MemberDetailModal({ isOpen, onClose, member, balances, t
               {isMe ? 'You are all settled up' : `${member.name.split(' ')[0]} is all settled up`}
             </p>
             <p className="text-xs text-gray-500 dark:text-dark-muted mt-0.5">No outstanding transactions</p>
+          </div>
+        )}
+
+        {/*
+          Destructive actions — admins can remove anyone, users can remove themselves.
+          Outstanding balance check reminds the user to settle before removing.
+        */}
+        {onRemove && (isAdmin || isMe) && (
+          <div className="pt-4 border-t border-gray-100 dark:border-dark-border mt-2">
+            {Math.abs(netAmt) > 0.01 && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 rounded-lg px-3 py-2 mb-3 flex items-start gap-1.5">
+                <span>⚠️</span>
+                <span>
+                  {isMe
+                    ? 'You have an outstanding balance. Settle up before leaving so others know the math is final.'
+                    : `${member.name.split(' ')[0]} has an outstanding balance. Removing now means the existing splits stay on record but they can no longer participate.`}
+                </span>
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                const msg = isMe
+                  ? `Leave "${member.name.split(' ')[0]}"? You'll lose access to this group's expenses. Past splits are preserved.`
+                  : `Remove ${member.name} from this group? Their existing expense splits stay on record.`;
+                if (!confirm(msg)) return;
+                onRemove(member._id);
+                onClose();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 font-semibold transition text-sm"
+            >
+              {isMe ? (
+                <>
+                  <FiLogOut className="h-4 w-4" />
+                  Leave this group
+                </>
+              ) : (
+                <>
+                  <FiUserMinus className="h-4 w-4" />
+                  Remove {member.name.split(' ')[0]} from group
+                </>
+              )}
+            </button>
           </div>
         )}
       </div>

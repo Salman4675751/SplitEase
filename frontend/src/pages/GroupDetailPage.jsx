@@ -677,6 +677,8 @@ export default function GroupDetailPage() {
         transactions={transactions}
         currency={group.currency}
         currentUserId={user?._id}
+        isAdmin={isAdmin}
+        onRemove={removeMember}
       />
 
       <Modal isOpen={showAddMember} onClose={() => setShowAddMember(false)} title="Invite Member" size="sm">

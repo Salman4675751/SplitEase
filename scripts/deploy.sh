@@ -79,15 +79,32 @@ command -v node   >/dev/null || fail "node not installed — install Node.js 20 
 command -v npm    >/dev/null || fail "npm not found"
 log "Node $(node -v) · npm $(npm -v) · git $(git --version | awk '{print $3}')"
 
+# Clone/sync helper — works whether target is empty, has CloudPanel
+# placeholder files, or is already a checked-out repo. Uses the
+# init+fetch+reset pattern so we can safely overwrite vendor placeholders.
+clone_or_pull() {
+  local target="$1" user="$2"
+  if [[ -d "$target/.git" ]]; then
+    ok "Repo present — pulling latest into $target"
+    sudo -u "$user" git -C "$target" fetch origin main -q
+    sudo -u "$user" git -C "$target" reset --hard origin/main
+    sudo -u "$user" git -C "$target" clean -fd  # respects .gitignore (won't touch .env)
+  else
+    ok "Initializing repo in $target (over any placeholder files)"
+    sudo -u "$user" bash <<EOF
+cd '$target'
+git init -q -b main
+git remote add origin '$REPO_URL' 2>/dev/null || git remote set-url origin '$REPO_URL'
+git fetch origin main -q
+git reset --hard origin/main
+git clean -fd
+EOF
+  fi
+}
+
 # ─── 3. Backend: clone or pull ────────────────────────────────────
 log "Setting up backend in $API_HOME"
-if [[ -d "$API_HOME/.git" ]]; then
-  ok "Repo already cloned — pulling latest"
-  sudo -u "$API_USER" git -C "$API_HOME" pull --ff-only
-else
-  ok "Cloning repo"
-  sudo -u "$API_USER" git clone "$REPO_URL" "$API_HOME"
-fi
+clone_or_pull "$API_HOME" "$API_USER"
 
 log "Installing backend production dependencies"
 sudo -u "$API_USER" bash -c "cd '$API_HOME/backend' && npm ci --omit=dev --no-audit --no-fund"
@@ -121,13 +138,7 @@ fi
 
 # ─── 5. Frontend: clone or pull ───────────────────────────────────
 log "Setting up frontend in $APP_HOME"
-if [[ -d "$APP_HOME/.git" ]]; then
-  ok "Repo already cloned — pulling latest"
-  sudo -u "$APP_USER" git -C "$APP_HOME" pull --ff-only
-else
-  ok "Cloning repo"
-  sudo -u "$APP_USER" git clone "$REPO_URL" "$APP_HOME"
-fi
+clone_or_pull "$APP_HOME" "$APP_USER"
 
 log "Writing frontend production .env"
 sudo -u "$APP_USER" bash -c "echo 'VITE_API_URL=https://$API_DOMAIN/api' > '$APP_HOME/frontend/.env.production'"

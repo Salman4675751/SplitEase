@@ -163,10 +163,28 @@ cp -r frontend/dist/* '$APP_HOME/'
 EOF
 ok "Built files deployed"
 
-# ─── 7. Summary + manual steps ────────────────────────────────────
+# ─── 7. Restart the running backend so new code is actually executed ─
+# Without this, deploy.sh updates the source on disk but the live Node
+# process keeps running yesterday's code. PM2 is what supervises it.
+if command -v pm2 >/dev/null 2>&1 && sudo -u "$API_USER" pm2 jlist 2>/dev/null | grep -q "splitease-api"; then
+  log "Restarting PM2 process splitease-api"
+  sudo -u "$API_USER" pm2 restart splitease-api --update-env
+  sleep 2
+  HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/api/health || echo "000")
+  if [[ "$HEALTH" == "200" ]]; then
+    ok "Backend restarted and healthy (200 from /api/health)"
+  else
+    warn "Backend restarted but health check returned HTTP $HEALTH — check 'pm2 logs splitease-api'"
+  fi
+else
+  warn "PM2 process splitease-api not found — start it manually:"
+  warn "  sudo -u $API_USER pm2 start $API_HOME/backend/server.js --name splitease-api --cwd $API_HOME/backend"
+fi
+
+# ─── 8. Summary + manual steps ────────────────────────────────────
 echo
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║  ✓ Code deployed — finish these in CloudPanel UI         ║${NC}"
+echo -e "${GREEN}║  ✓ Code deployed + backend restarted                     ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
 echo
 echo "BACKEND  (api.itcentralpark.com)"
